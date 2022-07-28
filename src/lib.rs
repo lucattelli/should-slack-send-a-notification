@@ -66,6 +66,15 @@ pub mod slack {
         n.message.channel.as_ref().unwrap().muted
     }
 
+    fn is_channel_notification_set_to_nothing(n: &Notification) -> bool {
+        n.message
+            .channel
+            .as_ref()
+            .unwrap()
+            .notification_preferences
+            .nothing
+    }
+
     fn is_thread_message(n: &Notification) -> bool {
         matches!(n.message.message_type, MessageType::ThreadMessage)
     }
@@ -116,20 +125,31 @@ pub mod slack {
         !np.mentions.mentions
     }
 
+    fn is_threads_everything_pref_on(n: &Notification) -> bool {
+        n.user.preferences.threads_everything
+    }
+
     pub fn should_slack_send_a_notification(n: &Notification) -> bool {
         if is_channel_muted(&n) {
             if !is_thread_message(&n) || !is_user_subscribed(&n) {
                 return false;
             }
         }
+
         if is_user_in_dnd(&n) && !is_dnd_override_on(&n) {
             return false;
         }
+
         if (is_channel_mention(&n) || is_everyone_mention(&n) || is_here_mention(&n))
             && are_channel_mentions_suppressed(&n)
         {
             return false;
         }
+
+        if (is_thread_message(&n) && is_user_subscribed(&n)) && is_threads_everything_pref_on(&n) {
+            return !is_channel_notification_set_to_nothing(&n);
+        }
+
         return true;
     }
 }
